@@ -1340,7 +1340,8 @@ static int parse_and_validate_options(int argc, const char *argv[],
 		} else {
 			fixup_commit = fixup_message;
 			fixup_prefix = "fixup";
-			use_editor = 0;
+			if (edit_flag < 0)
+				use_editor = 0;
 		}
 	}
 
