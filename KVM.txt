@@ -1,0 +1,148 @@
+00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0****_Domain_Monitoring
+ Domain Monitoring (help keyword 'monitor')
+    domblkerror                    Show errors on block devices
+    domblkinfo                     domain block device size information
+    domblklist                     list all domain blocks
+    domblkstat                     get device block stats for a domain
+    domcontrol                     domain control interface state
+    domif-getlink                  get link state of a virtual interface
+    domifaddr                      Get network interfaces' addresses for a running domain
+    domiflist                      list all domain virtual interfaces
+    domifstat                      get network interface stats for a domain
+    dominfo                        domain information
+    dommemstat                     get memory statistics for a domain
+    domstate                       domain state
+    domstats                       get statistics about one or multiple domains
+    domtime                        domain time
+    list                           list domains
+
+00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0****_Host_and_Hypervisor
+ Host and Hypervisor (help keyword 'host')
+    allocpages                     Manipulate pages pool size
+    capabilities                   capabilities
+    cpu-models                     CPU models
+    domcapabilities                domain capabilities
+    freecell                       NUMA free memory
+    freepages                      NUMA free pages
+    hostname                       print the hypervisor hostname
+    maxvcpus                       connection vcpu maximum
+    node-memory-tune               Get or set node memory parameters
+    nodecpumap                     node cpu map
+    nodecpustats                   Prints cpu stats of the node.
+    nodeinfo                       node information
+    nodememstats                   Prints memory stats of the node.
+    nodesuspend                    suspend the host node for a given time duration
+    sysinfo                        print the hypervisor sysinfo
+    uri                            print the hypervisor canonical URI
+    version                        show version
+
+
+##################################################################################
+############### CONNECTING THE SERIAL CONSOLE FOR THE GUEST VIRTUAL MACHINE ######
+##################################################################################
+# Optionally, the force option may be specified, which requests to disconnect any existing sessions, such as in the case of a broken connection.
+virsh console VM_Name [--force]
+##################################################################################
+
+##################################################################################
+############### Displaying info. about hypervisor & VM ###########################
+##################################################################################
+# DISPLAYING THE VIRSH VERSION
+virsh version
+
+# Getting information about the libvirtd version and package information, including information about the libvirt daemon that is running on the host.
+virsh version --daemon
+
+# Displays the hypervisor's host name
+virsh hostname
+
+# List all locally connected virtual machines.
+# lists all the virtual machines your hypervisor is connected to. 
+# Note that this command lists both persistent and transient virtual machines.
+virsh list --all
+
+# To display a list of active guest virtual machines and their current states with virsh.
+virsh list
+
+# How to list the inactive guest virtual machines.
+virsh list --inactive
+
+# Displaying Information about the Virtual CPU Counts of a Given Domain.
+virsh vcpucount VM_Name
+
+# Displaying Virtual CPU Information
+virsh vcpuinfo {domain-id, domain-name or domain-uuid}
+virsh vcpuinfo VM_Name
+
+# Displaying Guest Virtual Machine Block Device Information
+# Use the virsh domblkstat command to display block device statistics for a running guest virtual machine. Use the --human to display the statistics in a more user friendly way.
+virsh domblkstat GuestName block-device
+
+##################################################################################
+
+##################################################################################
+############### Configuring - Virtual CPU  #######################################
+##################################################################################
+
+# Use this command to change the number of virtual CPUs active in a guest virtual machine.
+# Note: By default, this command works on active guest virtual machines
+
+# Set the number of vCPUs to guestVM1 to two and this action will be performed while the guestVM1 is running.
+virsh setvcpus guestVM1 2 --live
+
+# NOTE: Hot unplugging vCPUs is not supported on Red Hat Enterprise Linux 7.
+
+--config   -flag is specified, the change is made to the stored XML configuration for the guest virtual machine, and will only take effect when the guest is started.
+
+--live     -is specified, the guest virtual machine must be active, and the change takes place immediately. This option will allow hot plugging of a vCPU. Both the --config and --live flags may be specified together if supported by the hypervisor.
+
+--current  -is specified, the flag affects the current guest virtual machine state.
+##################################################################################
+
+##################################################################################
+############### Configuring - Memory Allocation ##################################
+##################################################################################
+# NOTE: If the new value is lower than the available memory, it will shrink possibly causing the guest virtual machine to crash. A higher maximum memory value does not affect active guest virtual machines.
+# kilobytes / megabytes / gigabytes / terabytes 
+virsh setmem guest1 --megabytes 4108 --live
+
+--live     - the command controls the memory of a running guest virtual machine
+--config   - the command takes effect on the next boot
+--current  - the command controls the memory on the current guest virtual machine
+
+# Changing the Memory Allocation for the Domain
+# The size that can be given for the maximum memory is a scaled integer that by default is expressed in kibibytes, unless a supported suffix is provided. The following arguments can be used with this command:
+virsh setmaxmem guest1 --megabytes 4108 --current
+
+--config   - takes affect next boot
+--live     - controls the memory of the running guest virtual machine, providing the hypervisor supports this action as not all hypervisors allow live changes of the maximum memory limit.
+--current  - controls the memory on the current guest virtual machine
+##################################################################################
+
+
+##################################################################################
+###  Calculate the virtual machines and hypervisor cpu and memory usage
+##################################################################################
+Calculate the virtual machines and hypervisor cpu and memory usage
+
+#!/bin/bash
+cores=`grep flags /proc/cpuinfo | wc -l`;
+ps axo pcpu,pmem,args |
+        awk 'BEGIN {printf "%15s %5s  %4s\n", "Processes", "CPU", "Memory"}
+                {if ($3 == "/usr/libexec/qemu-kvm") {
+                        kvm_cpu[$5]=$1;kvm_mem[$5]=$2
+                        kvm_total_cpu+=$1;kvm_total_mem+=$2
+                } else {
+                        other_cpu+=$1; other_mem+=$2
+                }
+                total_cpu+=$1;total_mem+=$2
+        } END {
+                for (i in kvm_cpu)
+                        printf "%15s: %3.1f%% %3.1f%%\n", i,kvm_cpu[i]/"'"$cores"'", kvm_mem[i]
+                printf "%15s: %3.1f%% %3.1f%% \n", "Kvm total", kvm_total_cpu/"'"$cores"'", kvm_total_mem
+                printf "%15s: %3.1f%% %3.1f%% \n", "Other processes", other_cpu/"'"$cores"'", other_mem
+                printf "%15s: %3.1f%% %3.1f%% \n", "Free resources", 100-(total_cpu/"'"$cores"'"), 100 - total_mem
+        }'
+##################################################################################

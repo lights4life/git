@@ -1,0 +1,18 @@
+$ServerList = Get-Content "C:\zzzChandra\serverList1.txt"
+$plinkPath = 'C:\Program Files (x86)\PuTTY\plink.exe'
+$pscpPath = 'C:\Program Files (x86)\PuTTY\pscp.exe'
+
+foreach ($i in $ServerList) {
+    write-host $i
+    Write-Output $i "==========================================================" | Out-File -FilePath C:\zzzChandra\output.txt -Append
+    
+    echo y | &($pscpPath) -l ZCHAMEDDOM -pw 'Tcs@nov21nmc' -P 22 'C:\zzzChandra\cs\falcon-sensor-6.25.0-12207.el6.x86_64.rpm' ${i}:/var/tmp/ | Out-File -FilePath C:\zzzChandra\output.txt -Append
+	echo y | &($pscpPath) -l ZCHAMEDDOM -pw 'Tcs@nov21nmc' -P 22 'C:\zzzChandra\cs\falcon-sensor-6.25.0-12207.el7.x86_64.rpm' ${i}:/var/tmp/ | Out-File -FilePath C:\zzzChandra\output.txt -Append
+    Write-Output "==========================================================" | Out-File -FilePath C:\zzzChandra\output.txt -Append
+    Write-Output "`n" | Out-File -FilePath C:\zzzChandra\output.txt -Append
+}
+
+
+##### WORKING PSCP Lines Below####
+# echo y | &($pscpPath) -l 'zchameddom' -pw 'Tcs@oct20dom' -P 22 "C:\zzzTemp\os_prechecks.txt" "${i}:/tmp/" | Out-File -FilePath C:\zzzTemp\output.txt -Append
+# echo y | &($pscpPath) -l ZCHAMEDDOM -pw 'Tcs@oct20dom' -P 22 'C:\zzzTemp\agent_config.json' ${i}:/tmp/fireeye_agent | Out-File -FilePath C:\zzzTemp\output.txt -Append

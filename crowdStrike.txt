@@ -1,0 +1,80 @@
+#!/bin/bash -xv
+
+##Shared CrowdStrike for Linux Location
+#\\ESESSMW4026.ericsson.se\ERICSources\CrowdStrike\Packages (Shared CrowdStrike_Linux Location)
+
+# SATELLITE Server INFO: pose02lx0150v.prod.sdt.ericsson.se / 172.29.36.180
+
+# VARIABLE SETTINGS
+# CentOS - /etc/yum.repos.d/CentOS-Base.repo
+export PATH=/bin:/usr/bin:/sbin:/usr/sbin:$PATH
+OS_Name=`cat /etc/redhat-release | awk -F" " '{ print $1 }'`
+OS_Version=`cat /etc/redhat-release | awk -F'[^0-9]+' '/[0-9]/ { print ($1 != "" ? $1 : $2) }'`
+[[ ${OS_Name} == Red ]] && { EnableRepo='--disablerepo=* --enablerepo=rhel*'; }
+[[ ${OS_Name} == CentOS ]] && { EnableRepo='--disablerepo=* --enablerepo=base*,extras*,updates*,centosplus*'; }
+echo $EnableRepo
+server_name=`hostname`
+
+cat /etc/*release*
+# CentsOS   <----->   /etc/yum.conf <----> proxy=http://www-proxy.ericsson.se:8080
+[[ ${OS_Name} == Ubuntu ]] && { printf "HOSTNAME: %s, OSName: %s, OSversion: %s\n" "$server_name" "$OS_Name" "$OS_Version"; exit 1; }
+[[ ${OS_Version} == 4 ]] && { printf "HOSTNAME: %s, OSName: %s, OSversion: %s\n" "$server_name" "$OS_Name" "$OS_Version"; exit 1; }
+[[ ${OS_Version} == 5 ]] && { printf "HOSTNAME: %s, OSName: %s, OSversion: %s\n" "$server_name" "$OS_Name" "$OS_Version"; exit 1; }
+
+[[ ${OS_Version} == 6 ]] && { printf "HOSTNAME- %s, OS-RHEL6 - INSTALLING CROWDSTRIKE \n" "$server_name"; }
+[[ ${OS_Version} == 7 ]] && { printf "HOSTNAME- %s, OS-RHEL7 - INSTALLING CROWDSTRIKE \n" "$server_name"; }
+
+#################################################
+#Step:1 - Download CROWDSTRIKE package from satellite
+#################################################
+
+printf "####>>>> Step:1 - Download CROWDSTRIKE package from satellite.\n"
+unset http_proxy; unset https_proxy
+
+[[ ${OS_Name} == CentOS ]] && [[ ${OS_Version} == 7 ]] && { echo 'proxy=http://www-proxy.ericsson.se:8080' >> /etc/yum.conf; }
+[[ ${OS_Name} == CentOS ]] && [[ ${OS_Version} == 7 ]] && { wget -vvv --no-proxy -P /etc/yum.repos.d http://172.29.36.180/pub/CentOS-Base.repo; }
+
+rm -rf /var/tmp/falcon-sensor*
+[[ -f /var/tmp/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm ]] || { wget -vvv --no-proxy -P /var/tmp http://172.29.36.180/pub/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm; }
+[[ -f /var/tmp/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm ]] || { curl -vvv -m 5 -k "https://172.29.36.180/pub/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm" --output "/var/tmp/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm"; }
+
+#################################################
+#Step:3 - INSTALL the CROWDSTRIKE package
+#################################################
+printf "####>>>> Step:3 - INSTALL the package for instalaation.\n"
+
+yum install -y ${EnableRepo} /var/tmp/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm
+[[ $? == 0 ]] || { rpm -ivh /var/tmp/falcon-sensor-6.32.0-12904.el${OS_Version}.x86_64.rpm; }
+
+#################################################
+#Step:4 - CONFIGURE the CROWDSTRIKE AGENT
+#################################################
+/opt/CrowdStrike/falconctl -s -f --cid=163E2F009F6A4965984F52B33451D286-FD
+/opt/CrowdStrike/falconctl -s -f --tags="SDAP"
+/opt/CrowdStrike/falconctl -s -f --aph="www-proxy.ericsson.se" --app=8080
+/opt/CrowdStrike/falconctl -g --aph --app 
+/opt/CrowdStrike/falconctl -s -f --apd=FALSE
+/opt/CrowdStrike/falconctl -g --apd
+
+#################################################
+#Step:5 - START & VERIFY CROWDSTRIKE AGENT STATUS
+#################################################
+[[ ${OS_Version} == 6 ]] && { service falcon-sensor start; service falcon-sensor restart; service falcon-sensor status; }
+[[ ${OS_Version} == 7 ]] && { systemctl start falcon-sensor; systemctl restart falcon-sensor; systemctl status falcon-sensor -l; }
+
+ps -e | grep falcon-sensor
+printf "\n"
+
+cat /etc/*release*
+printf "\n\n\n ################## Verify Satellite PORT is OPEN ######################\n"
+echo quit | timeout --signal=9 3 telnet 172.29.36.180 443 > telnet_out.txt 2>&1
+
+printf "\n\n\n ################## Verify CS PORTS are OPEN ######################\n"
+echo quit | timeout --signal=9 3 telnet 35.164.23.230 443 >> telnet_out.txt 2>&1
+printf "\n\n\n"
+echo quit | timeout --signal=9 3 telnet 52.43.73.53 443 >> telnet_out.txt 2>&1
+printf "\n\n\n"
+# PROXY connection - www-proxy.ericsson.se
+echo quit | timeout --signal=9 3 telnet 153.88.253.150 8080 >> telnet_out.txt 2>&1
+cat telnet_out.txt
+printf "\n\n\n"
